@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['D:\\pythonProject\\buildLog2CompileCommands\\main.py'],
+    ['main.py'],
     pathex=[],
     binaries=[],
     datas=[],
