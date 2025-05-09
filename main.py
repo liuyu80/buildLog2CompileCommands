@@ -12,12 +12,12 @@ def convert_to_relative_path(absolute_path, project_name_to_strip):
     if not project_name_to_strip:
         return absolute_path
 
-    # Normalize path separators for consistent splitting
+    # 规范化路径分隔符以实现一致的拆分
     normalized_path = absolute_path.replace('\\\\', '/')
     
     parts = normalized_path.split('/')
     try:
-        # Find the index of the project_name_to_strip directory
+        # 查找要剥离的项目名称目录的索引
         idx = -1
         for i, part in enumerate(parts):
             if part == project_name_to_strip:
@@ -27,12 +27,12 @@ def convert_to_relative_path(absolute_path, project_name_to_strip):
         if idx != -1 and idx + 1 < len(parts):
             # Join the parts after the project_name_to_strip directory
             relative_parts = parts[idx+1:]
-            # Handle cases like '../../' which might result in leading empty strings if not careful
-            # However, os.path.join or similar would handle this, but simple join is fine here.
+            # 处理类似'../../'的情况，如果不小心处理可能会导致前导空字符串
+            # 但是，os.path.join 或类似方法会处理这种情况，这里简单连接即可
             return "/".join(relative_parts)
         else:
-            # If project_name_to_strip is not found as a directory component,
-            # or it's the last component, return the original path or handle as error
+            # 如果未找到要剥离的项目名称作为目录组件，
+            # 或者它是最后一个组件，返回原始路径或作为错误处理
             return absolute_path 
     except ValueError:
         # Fallback if project_name_to_strip is not in path parts
@@ -46,10 +46,10 @@ def parse_compile_line(line, project_name_to_strip, current_run_directory):
     ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
     cleaned_line = ansi_escape.sub('', line.strip())
 
-    # Match C/C++ compilation lines (typically containing 'arm-linux-g++ -c' or 'arm-linux-gcc -c')
-    # This regex tries to capture the compiler, options, source file, and output file.
-    # It assumes source file is a .c or .cpp file.
-    # Example: arm-linux-g++ -c [options] source.cpp -o output.o
+    # 匹配 C/C++ 编译行（通常包含 'arm-linux-g++ -c' 或 'arm-linux-gcc -c'）
+    # 此正则表达式试图捕获编译器、选项、源文件和输出文件。
+    # 它假设源文件是 .c 或 .cpp 文件。
+    # 示例：arm-linux-g++ -c [选项] source.cpp -o output.o
     match = re.match(r'\s*(arm-linux-g\+\+|arm-linux-gcc)\s+-c\s+(.*)', cleaned_line)
     if not match:
         return None
@@ -76,34 +76,33 @@ def parse_compile_line(line, project_name_to_strip, current_run_directory):
         if o_index == -1 or o_index + 1 >= len(args):
             return None # No -o option or no argument after -o
 
-        # Identify the source file: usually the last .c or .cpp file before -o
-        # that is not an option itself.
+        # 确定源文件：通常是 -o 之前最后一个非选项的 .c 或 .cpp 文件
         for i in range(o_index - 1, -1, -1):
             arg_val = args[i]
             if (arg_val.endswith('.c') or arg_val.endswith('.cpp')) and not arg_val.startswith('-'):
                 # Check if it's a path (contains '/') or is in the current directory context of make
-                # This check helps differentiate from -D__FILENAME__="file.cpp"
+                # 此检查有助于区分 -D__FILENAME__="file.cpp" 的情况
                 if '/' in arg_val or '\\\\' in arg_val or os.path.exists(arg_val): # A simple check
                     source_file_path = arg_val
                     break
         
         if not source_file_path:
-            # Fallback: if a .c/.cpp file is directly before -o without being an option
-            # This might be too simplistic if options can look like filenames.
-            # The log shows source files are full paths.
-            # A more robust way is to look for the argument that is a path and ends with .c/.cpp
-            # and is not an output of another option (like -D__FILENAME__)
-            # The provided log shows source files are often explicitly listed.
-            # Let's assume the last non-option argument before -o that ends with .c/.cpp is the source.
-            # The log structure is often `... options ... source.cpp -o target.o` or `... options ... -shared source.cpp -o target.so`
-            # For -c, it's simpler.
-            # The example `arm-linux-g++ -c ... -shared /path/to/source.cpp -o /path/to/object.o`
-            # The source is `/path/to/source.cpp`
-            # The argument `args[o_index-1]` is not always the source file if `-shared` or other flags are present.
-            # We need to find the actual source file path among the arguments before `-o`.
-            # It's the one that is being compiled.
-            # The log shows the source file path is often the last argument before -o that is a .c/.cpp file.
-            # Let's re-iterate to find it more reliably.
+            # 备选方案：如果 .c/.cpp 文件直接位于 -o 之前且不是选项
+            # 如果选项可能看起来像文件名，这可能过于简单化。
+            # 日志显示源文件是完整路径。
+            # 更可靠的方法是查找是路径且以 .c/.cpp 结尾的参数
+            # 并且不是其他选项（如 -D__FILENAME__）的输出
+            # 提供的日志显示源文件通常被显式列出。
+            # 假设 -o 之前最后一个非选项参数是源文件（以 .c/.cpp 结尾）
+            # 日志结构通常是 `... 选项 ... source.cpp -o target.o` 或 `... 选项 ... -shared source.cpp -o target.so`
+            # 对于 -c 情况更简单。
+            # 示例 `arm-linux-g++ -c ... -shared /path/to/source.cpp -o /path/to/object.o`
+            # 源文件是 `/path/to/source.cpp`
+            # 参数 `args[o_index-1]` 不总是源文件，如果存在 `-shared` 或其他标志。
+            # 我们需要在 `-o` 之前的参数中查找实际的源文件路径。
+            # 它就是正在编译的那个文件。
+            # 日志显示源文件路径通常是 -o 之前最后一个 .c/.cpp 文件
+            # 让我们重新迭代以更可靠地找到它
             temp_source_candidate = None
             for i in range(o_index -1, -1, -1):
                 if (args[i].endswith(".c") or args[i].endswith(".cpp")) and \
@@ -119,22 +118,30 @@ def parse_compile_line(line, project_name_to_strip, current_run_directory):
 
         compile_info["file"] = convert_to_relative_path(source_file_path, project_name_to_strip)
 
-        # Collect arguments (ONLY -I and -D flags as per user's desired JSON format)
+        # 收集参数（仅限 -I 和 -D 标志，按照用户期望的 JSON 格式）
         for i in range(o_index): 
             arg = args[i]
+            
             if arg == source_file_path:  # Don't add the source file itself to 'arguments'
                 continue
             
             if arg.startswith("-I"):
                 path_part = arg[2:]
-                # User wants the -I prefix in the arguments list
-                compile_info["arguments"].append(f"-I{convert_to_relative_path(path_part, project_name_to_strip)}")
+                # 用户希望在参数列表中包含 -I 前缀
+                if len(arg) == 2:
+                    next_arg = args[i+1]
+                    compile_info["arguments"].append(f"-I{convert_to_relative_path(next_arg, project_name_to_strip)}")
+                else:
+                    compile_info["arguments"].append(f"-I{convert_to_relative_path(path_part, project_name_to_strip)}")
             elif arg.startswith("-D"):
-                compile_info["arguments"].append(arg)
-            # All other compiler flags (like -c, -g, -O0, -fpic, -std=, etc.) are ignored for this field.
+                if len(arg) == 2:
+                    compile_info["arguments"].append(arg+args[i+1])
+                else:
+                    compile_info["arguments"].append(arg)
+            # 所有其他编译器标志（如 -c, -g, -O0, -fpic, -std= 等）在此字段中被忽略
 
     except Exception:
-        # If any error occurs during parsing this specific line's structure
+        # 如果解析此特定行结构时发生任何错误
         return None
 
     if not compile_info["file"]: # Ensure a file was found
@@ -188,3 +195,4 @@ if __name__ == "__main__":
     cli_args = parser.parse_args()
 
     create_compile_commands(cli_args.log_file, cli_args.project_name, cli_args.output)
+
