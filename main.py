@@ -3,6 +3,24 @@ import json
 import os
 import argparse
 
+c_cpp_files = []
+
+def scan_source_files() :
+    """
+    扫描当前目录及其子目录下的所有.c和.cpp文件，返回绝对路径列表(使用"/"分隔符)
+    
+    返回:
+        List[str]: 包含所有.c和.cpp文件绝对路径的列表
+    """
+    source_files = []
+    for root, _, files in os.walk('.'):
+        for file in files:
+            if file.endswith('.c') or file.endswith('.cpp'):
+                # 获取绝对路径并统一使用正斜杠
+                abs_path = os.path.abspath(os.path.join(root, file)).replace('\\', '/')
+                source_files.append(abs_path)
+    return source_files
+
 def convert_to_relative_path(absolute_path, project_name_to_strip):
     """
     将绝对路径转换为相对于 project_name_to_strip 的路径。
@@ -111,6 +129,13 @@ def parse_compile_line(line, project_name_to_strip, current_run_directory):
                     temp_source_candidate = args[i]
                     break
             if temp_source_candidate:
+                if not os.path.isabs(temp_source_candidate):
+                    # 如果不是绝对路径，尝试在c_cpp_files中匹配文件名
+                    filename = os.path.basename(temp_source_candidate)
+                    for full_path in c_cpp_files:
+                        if filename == os.path.basename(full_path):
+                            temp_source_candidate = full_path
+                            break
                 source_file_path = temp_source_candidate
             else:
                 return None
@@ -194,5 +219,5 @@ if __name__ == "__main__":
 
     cli_args = parser.parse_args()
 
+    c_cpp_files = scan_source_files()
     create_compile_commands(cli_args.log_file, cli_args.project_name, cli_args.output)
-
