@@ -50,7 +50,7 @@ def parse_compile_line(line, project_name_to_strip, current_run_directory):
     # 此正则表达式试图捕获编译器、选项、源文件和输出文件。
     # 它假设源文件是 .c 或 .cpp 文件。
     # 示例：arm-linux-g++ -c [选项] source.cpp -o output.o
-    match = re.match(r'\s*(arm-linux-g\+\+|arm-linux-gcc)\s+-c\s+(.*)', cleaned_line)
+    match = re.match(r'\s*(arm-linux-g\+\+|arm-linux-gcc|ccache arm-linux-gnueabihf-g\+\+|ccache arm-linux-gnueabihf-gcc)\s+-c\s+(.*)', cleaned_line)
     if not match:
         return None
 
