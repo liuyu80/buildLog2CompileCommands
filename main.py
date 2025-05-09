@@ -143,6 +143,12 @@ def parse_compile_line(line, project_name_to_strip, current_run_directory):
 
         compile_info["file"] = convert_to_relative_path(source_file_path, project_name_to_strip)
 
+        # 根据文件后缀决定编译器类型
+        if source_file_path.endswith('.c'):
+            compile_info["arguments"].append('gcc')
+        else:
+            compile_info["arguments"].append('g++')
+
         # 收集参数（仅限 -I 和 -D 标志，按照用户期望的 JSON 格式）
         for i in range(o_index): 
             arg = args[i]
